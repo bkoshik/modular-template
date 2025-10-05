@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '*'
+      - 'features/*'
+  pull_request:
+    branches:
+      - '*'
+      - 'features/*'
+  workflow_dispatch:
+  
+jobs:
+  build_and_test:
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest ]
+        arch: [ aarch64, x86_64 ]
+        include:
+          - os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+            os_runner: macos-latest
+          - os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
+            os_runner: macos-latest
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            os_runner: ubuntu-latest
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            os_runner: ubuntu-latest
+
+    name: Build & Test on ${{ matrix.os_runner }} (${{ matrix.arch }})
+
+    runs-on: ${{ matrix.os_runner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Checkout cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --all-features --verbose --release --target ${{ matrix.target }}
+
+      - name: Run tests
+        run: cargo test --all-features --verbose --target ${{ matrix.target }}
